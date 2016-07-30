@@ -4,10 +4,12 @@ var Promise = require('bluebird');  // jshint ignore:line
 var express = require('express');
 var ejs = require('ejs');
 
+var twobytwo1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=2&rnd=1';
+var threebythree1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1';
 var fourbyfour1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1';
 var pyraminx1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1';
 
-function getTimes(url) {
+function getTimes(url, cut) {
     var resolve, reject;
     var deferred = new Promise(function() {
         resolve = arguments[0];
@@ -30,12 +32,16 @@ function getTimes(url) {
                 unreported += 1;
             }
         });
+        //url;
+        //var minimum = $('.col_tm').slice((cut - 1) * 7, cut * 7).text();
+        //debugger;
 
         resolve([
             { title: 'result', value: result },
             { title: 'place', value: place },
             { title: 'competitors', value: competitors },
-            { title: 'unreported', value: unreported }
+            { title: 'unreported', value: unreported },
+        //    { title: 'minimum', value: minimum }
         ]);
     });
 
@@ -56,6 +62,20 @@ app.get('/', function(request, response) {
     .then(function() {
         console.log('FETCHING RESULTS');
         return [
+            getTimes(twobytwo1).bind(this)
+            .then((data) => {
+                this.results.push({
+                    title: '2x2 Round 1',
+                    fields: data
+                });
+            }),
+            getTimes(threebythree1).bind(this)
+            .then((data) => {
+                this.results.push({
+                    title: '3x3 Round 1',
+                    fields: data
+                });
+            }),
             getTimes(fourbyfour1).bind(this)
             .then((data) => {
                 this.results.push({
