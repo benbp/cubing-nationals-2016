@@ -46,12 +46,12 @@ app.get('/', function(request, response) {
             getTimes(fourbyfour1).bind(this)
             .then((data) => {
                 this.results.fourbyfourR1Score = data.result;
-                this.results.fourbyfourR1Place = data.result;
+                this.results.fourbyfourR1Place = data.place;
             }),
             getTimes(pyraminx1).bind(this)
             .then((data) => {
                 this.results.pyraminxR1Score = data.result;
-                this.results.pyraminxR1Place = data.result;
+                this.results.pyraminxR1Place = data.place;
             })
         ];
     })
