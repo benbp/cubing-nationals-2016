@@ -23,10 +23,19 @@ function getTimes(url) {
         var td = $('.col_nm :contains("Joshua Broderick Phillips")').parent().parent();
         var result = td.nextAll().slice(6, 7).text();
         var place = td.parent().find('b').first().text();
+        var competitors = $('.row_even').length + $('.row_odd').length;
+        var unreported = 0;
+        $('.col_cl').each(function(n, el) {
+            if(!cheerio.load(el)('.col_cl').text()) {
+                unreported += 1;
+            }
+        });
 
         resolve({
             result: result,
-            place: place
+            place: place,
+            competitors: competitors,
+            unreported: unreported
         });
     });
 
@@ -47,11 +56,15 @@ app.get('/', function(request, response) {
             .then((data) => {
                 this.results.fourbyfourR1Score = data.result;
                 this.results.fourbyfourR1Place = data.place;
+                this.results.fourbyfourR1Competitors = data.competitors;
+                this.results.fourbyfourR1Unreported = data.unreported;
             }),
             getTimes(pyraminx1).bind(this)
             .then((data) => {
                 this.results.pyraminxR1Score = data.result;
                 this.results.pyraminxR1Place = data.place;
+                this.results.pyraminxR1Competitors = data.competitors;
+                this.results.pyraminxR1Unreported = data.unreported;
             })
         ];
     })
