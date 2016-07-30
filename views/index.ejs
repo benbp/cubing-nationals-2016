@@ -1,18 +1,12 @@
 <html>
 <body>
-    <h3>Pyraminx R1</h3>
-    <ul>
-        <li>Score: <%=pyraminxR1Score%></li>
-        <li>Place: <%=pyraminxR1Place%> of 100</li>
-        <li>Competitors: <%=pyraminxR1Competitors%></li>
-        <li>Unreported: <%=pyraminxR1Unreported%></li>
-    </ul>
-    <h3>4x4</h3>
-    <ul>
-        <li>Score: <%=fourbyfourR1Score%></li>
-        <li>Place: <%=fourbyfourR1Place%> of 100</li>
-        <li>Competitors: <%=fourbyfourR1Competitors%></li>
-        <li>Unreported: <%=fourbyfourR1Unreported%></li>
-    </ul>
+    <% results.forEach(function(data) { %>
+        <h3><%= data.title %></h3>
+        <ul>
+            <% data.fields.forEach(function(field) { %>
+                <li><%= field.title %>: <%= field.value %></li>
+            <% }); %>
+        </ul>
+    <% }); %>
 </body>
 </html>

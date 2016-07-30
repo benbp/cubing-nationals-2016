@@ -31,12 +31,12 @@ function getTimes(url) {
             }
         });
 
-        resolve({
-            result: result,
-            place: place,
-            competitors: competitors,
-            unreported: unreported
-        });
+        resolve([
+            { title: 'result', value: result },
+            { title: 'place', value: place },
+            { title: 'competitors', value: competitors },
+            { title: 'unreported', value: unreported }
+        ]);
     });
 
     return deferred;
@@ -47,31 +47,35 @@ app.set('port', (process.env.PORT || 5000));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
+function addData(data) {
+    result.fields.push(data);
+}
+
 app.get('/', function(request, response) {
-    Promise.resolve().bind({ results: {} })
+    Promise.resolve().bind({ results: [] })
     .then(function() {
         console.log('FETCHING RESULTS');
         return [
             getTimes(fourbyfour1).bind(this)
             .then((data) => {
-                this.results.fourbyfourR1Score = data.result;
-                this.results.fourbyfourR1Place = data.place;
-                this.results.fourbyfourR1Competitors = data.competitors;
-                this.results.fourbyfourR1Unreported = data.unreported;
+                this.results.push({
+                    title: '4x4 Round 1',
+                    fields: data
+                });
             }),
             getTimes(pyraminx1).bind(this)
             .then((data) => {
-                this.results.pyraminxR1Score = data.result;
-                this.results.pyraminxR1Place = data.place;
-                this.results.pyraminxR1Competitors = data.competitors;
-                this.results.pyraminxR1Unreported = data.unreported;
+                this.results.push({
+                    title: 'Pyraminx Round 1',
+                    fields: data
+                });
             })
         ];
     })
     .spread(function() {
         console.log('RESULTS');
         console.log(this.results);
-        response.render('index.ejs', this.results);
+        response.render('index.ejs', { results: this.results });
     })
     .catch(function(err) {
         response.send(err);
