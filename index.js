@@ -1,6 +1,8 @@
 var request = require('request');
 var cheerio = require('cheerio');
 var Promise = require('bluebird');  // jshint ignore:line
+var express = require('express');
+var ejs = require('ejs');
 
 var fourbyfour1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1';
 var pyraminx1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1';
@@ -31,14 +33,38 @@ function getTimes(url) {
     return deferred;
 }
 
-getTimes(fourbyfour1)
-.then((data) => {
-    console.log("4x4 R1 score: " + data.result);
-    console.log("4x4 R1 place: " + data.place);
+var app = express();
+app.set('port', (process.env.PORT || 5000));
+app.set('views', __dirname + '/views');
+app.set('view engine', 'ejs');
+
+app.get('/', function(request, response) {
+    Promise.resolve().bind({ results: {} })
+    .then(function() {
+        console.log('FETCHING RESULTS');
+        return [
+            getTimes(fourbyfour1).bind(this)
+            .then((data) => {
+                this.results.fourbyfourR1Score = data.result;
+                this.results.fourbyfourR1Place = data.result;
+            }),
+            getTimes(pyraminx1).bind(this)
+            .then((data) => {
+                this.results.pyraminxR1Score = data.result;
+                this.results.pyraminxR1Place = data.result;
+            })
+        ];
+    })
+    .spread(function() {
+        console.log('RESULTS');
+        console.log(this.results);
+        response.render('index.ejs', this.results);
+    })
+    .catch(function(err) {
+        response.send(err);
+    });
 });
 
-getTimes(pyraminx1)
-.then((data) => {
-    console.log("Pyraminx R1 score: " + data.result);
-    console.log("Pyraminx R1 place: " + data.place);
+app.listen(app.get('port'), function() {
+    console.log("Node app is running at localhost:" + app.get('port'));
 });
