@@ -74,6 +74,7 @@ var app = express();
 app.set('port', (process.env.PORT || 5000));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
+app.use('/scripts', express.static(__dirname + '/scripts'));
 
 app.get('/', function(req, res) {
     res.render('index.ejs', { refreshInterval: 10 });
