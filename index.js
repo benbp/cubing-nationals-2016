@@ -7,7 +7,7 @@ var ejs = require('ejs');
 
 var queries = [
     { title: '2x2 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=2&rnd=1' },
-    { title: '3x3 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1' },
+    { cutoff: 150, title: '3x3 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1' },
     { title: '4x4 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1' },
     { title: 'Pyraminx Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1' },
 ];
@@ -18,6 +18,7 @@ function getTimes(url, cutoff) {
         resolve = arguments[0];
         reject = arguments[1];
     });
+
     if (!cutoff) {
         cutoff = 100;
     }
@@ -27,16 +28,17 @@ function getTimes(url, cutoff) {
             reject(err);
             return;
         }
+        console.time(' rows ' + url);
+        var rows = c.load(body)('.row_even, .row_odd');
+        console.timeEnd(' rows ' + url);
+
         console.time(' res/place ' + url);
         var td = c.load(body)('.col_nm :contains("Joshua Broderick Phillips")').parent().parent();
         var result = td.nextAll().slice(6, 7).text();
         var place = td.parent().find('b').first().text();
         console.timeEnd(' res/place ' + url);
 
-        console.time(' competitors ' + url);
-        var tr = c.load(body);
-        var competitors = tr('.row_even').length + tr('.row_odd').length;
-        console.timeEnd(' competitors ' + url);
+        var competitors = rows.length;
 
         console.time(' unreported ' + url);
         var unreported = c.load(body)('.col_cl :empty').length;
@@ -45,16 +47,24 @@ function getTimes(url, cutoff) {
         console.time(' worst ' + url);
         var worst = c.load(body)('.col_cl :contains(' + cutoff + ')')
                         .parent().nextAll().slice(7,8).text();
-
         console.timeEnd(' worst ' + url);
 
-        resolve([
-            { title: 'result', value: result },
-            { title: 'place', value: place },
-            { title: 'competitors', value: competitors },
-            { title: 'unreported', value: unreported },
-            { title: 'worst', value: worst }
-        ]);
+        console.time(' scores ' + url);
+        var scores = c.load(body)('.TD').children().slice(0, cutoff).map(function(n, el) {
+            return c.load(this)('td').slice(8,9).text().replace(/\D+/g, '');
+        }).toArray();
+        console.timeEnd(' scores ' + url);
+
+        resolve({
+            scores: scores,
+            fields: [
+                { title: 'result', value: result },
+                { title: 'place', value: place },
+                { title: 'competitors', value: competitors },
+                { title: 'unreported', value: unreported },
+                { title: 'worst', value: worst }
+            ]
+        });
     });
 
     return deferred;
@@ -65,31 +75,31 @@ app.set('port', (process.env.PORT || 5000));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
-function addData(data) {
-    result.fields.push(data);
-}
-
 app.get('/', function(request, response) {
-    Promise.resolve().bind({ results: [] })
+    var results = [];
+
+    Promise.resolve()
     .then(function() {
         console.log('FETCHING RESULTS');
         return Promise.map(queries, (query) => {
-            return getTimes(query.url)
+            return getTimes(query.url, query.cutoff)
                     .then((data) => {
-                        this.results.push({
+                        results.push({
+                            cls: query.title.replace(/\s/g, '_'),
                             title: query.title,
-                            fields: data
+                            fields: data.fields,
+                            scores: data.scores
                         });
                     });
         });
     })
     .then(function() {
         console.log('RESULTS');
-        this.results = this.results.sort(function(a, b) {
+        results = results.sort(function(a, b) {
             return a.title > b.title;
         });
-        console.log(JSON.stringify(this.results));
-        response.render('index.ejs', { results: this.results });
+        console.log(JSON.stringify(results));
+        response.render('index.ejs', { results: results });
     })
     .catch(function(err) {
         response.send(err);

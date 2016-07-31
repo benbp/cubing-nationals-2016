@@ -1,17 +1,37 @@
 <html>
 <head>
     <meta http-equiv="refresh" content="10">
+    <script src="http://code.jquery.com/jquery-latest.min.js"
+        type="text/javascript"></script>
+    <script type="text/javascript" 
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js"></script>
+    <script type="text/javascript">
+        $(function() {
+            <% results.forEach(function(data) { %>
+                $(".<%= data.cls %>").sparkline([<%= data.scores %>], {
+                    type: 'line',
+                    height: '120',
+                    width: '250',
+                });
+            <% }); %>
+        });
+    </script>
 </head>
 <body>
     <i>Refreshing data every 10 seconds</i>
 
     <% results.forEach(function(data) { %>
-        <h3><%= data.title %></h3>
-        <ul>
-            <% data.fields.forEach(function(field) { %>
-                <li><%= field.title %>: <%= field.value %></li>
-            <% }); %>
-        </ul>
+        <div style="width:450">
+            <div>
+                <span class="<%= data.cls %>" style="float:right">spark</span>
+                <h3><%= data.title %></h3>
+                <ul>
+                    <% data.fields.forEach(function(field) { %>
+                        <li><%= field.title %>: <%= field.value %></li>
+                    <% }); %>
+                </ul>
+            </div>
+        </div>
     <% }); %>
 </body>
 </html>
