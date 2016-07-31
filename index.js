@@ -79,6 +79,10 @@ app.get('/', function(req, res) {
     res.render('index.ejs', { refreshInterval: 10 });
 });
 
+app.get('/null', function(req, res) {
+    res.send('');
+});
+
 app.get('/query', function(req, res) {
     Promise.resolve()
     .then(function() {
