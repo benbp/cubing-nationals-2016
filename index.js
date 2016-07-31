@@ -1,47 +1,59 @@
 var request = require('request');
-var cheerio = require('cheerio');
+var c = require('cheerio');
 var Promise = require('bluebird');  // jshint ignore:line
 var express = require('express');
 var ejs = require('ejs');
 
-var twobytwo1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=2&rnd=1';
-var threebythree1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1';
-var fourbyfour1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1';
-var pyraminx1 = 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1';
 
-function getTimes(url, cut) {
+var queries = [
+    { title: '2x2 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=2&rnd=1' },
+    { title: '3x3 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1' },
+    { title: '4x4 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1' },
+    { title: 'Pyraminx Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1' },
+];
+
+function getTimes(url, cutoff) {
     var resolve, reject;
     var deferred = new Promise(function() {
         resolve = arguments[0];
         reject = arguments[1];
     });
+    if (!cutoff) {
+        cutoff = 100;
+    }
 
     var firstRound = request.get(url, (err, resp, body) => {
         if (err) {
             reject(err);
             return;
         }
-        var $ = cheerio.load(body);
-        var td = $('.col_nm :contains("Joshua Broderick Phillips")').parent().parent();
+        console.time(' res/place ' + url);
+        var td = c.load(body)('.col_nm :contains("Joshua Broderick Phillips")').parent().parent();
         var result = td.nextAll().slice(6, 7).text();
         var place = td.parent().find('b').first().text();
-        var competitors = $('.row_even').length + $('.row_odd').length;
-        var unreported = 0;
-        $('.col_cl').each(function(n, el) {
-            if(!cheerio.load(el)('.col_cl').text()) {
-                unreported += 1;
-            }
-        });
-        //url;
-        //var minimum = $('.col_tm').slice((cut - 1) * 7, cut * 7).text();
-        //debugger;
+        console.timeEnd(' res/place ' + url);
+
+        console.time(' competitors ' + url);
+        var tr = c.load(body);
+        var competitors = tr('.row_even').length + tr('.row_odd').length;
+        console.timeEnd(' competitors ' + url);
+
+        console.time(' unreported ' + url);
+        var unreported = c.load(body)('.col_cl :empty').length;
+        console.timeEnd(' unreported ' + url);
+
+        console.time(' worst ' + url);
+        var worst = c.load(body)('.col_cl :contains(' + cutoff + ')')
+                        .parent().nextAll().slice(7,8).text();
+
+        console.timeEnd(' worst ' + url);
 
         resolve([
             { title: 'result', value: result },
             { title: 'place', value: place },
             { title: 'competitors', value: competitors },
             { title: 'unreported', value: unreported },
-        //    { title: 'minimum', value: minimum }
+            { title: 'worst', value: worst }
         ]);
     });
 
@@ -61,40 +73,22 @@ app.get('/', function(request, response) {
     Promise.resolve().bind({ results: [] })
     .then(function() {
         console.log('FETCHING RESULTS');
-        return [
-            getTimes(twobytwo1).bind(this)
-            .then((data) => {
-                this.results.push({
-                    title: '2x2 Round 1',
-                    fields: data
-                });
-            }),
-            getTimes(threebythree1).bind(this)
-            .then((data) => {
-                this.results.push({
-                    title: '3x3 Round 1',
-                    fields: data
-                });
-            }),
-            getTimes(fourbyfour1).bind(this)
-            .then((data) => {
-                this.results.push({
-                    title: '4x4 Round 1',
-                    fields: data
-                });
-            }),
-            getTimes(pyraminx1).bind(this)
-            .then((data) => {
-                this.results.push({
-                    title: 'Pyraminx Round 1',
-                    fields: data
-                });
-            })
-        ];
+        return Promise.map(queries, (query) => {
+            return getTimes(query.url)
+                    .then((data) => {
+                        this.results.push({
+                            title: query.title,
+                            fields: data
+                        });
+                    });
+        });
     })
-    .spread(function() {
+    .then(function() {
         console.log('RESULTS');
-        console.log(this.results);
+        this.results = this.results.sort(function(a, b) {
+            return a.title > b.title;
+        });
+        console.log(JSON.stringify(this.results));
         response.render('index.ejs', { results: this.results });
     })
     .catch(function(err) {
