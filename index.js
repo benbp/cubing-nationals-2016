@@ -5,29 +5,23 @@ var express = require('express');
 var ejs = require('ejs');
 
 
-var queries = [
-    { title: '2x2 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=2&rnd=1' },
-    { cutoff: 150, title: '3x3 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=1&rnd=1' },
-    { title: '4x4 Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=3&rnd=1' },
-    { title: 'Pyraminx Round 1', url: 'https://cubecomps.cubing.net/live.php?cid=1639&cat=11&rnd=1' },
-];
-
-function getTimes(url, cutoff) {
+function getTimes(url) {
     var resolve, reject;
     var deferred = new Promise(function() {
         resolve = arguments[0];
         reject = arguments[1];
     });
 
-    if (!cutoff) {
-        cutoff = 100;
-    }
-
     var firstRound = request.get(url, (err, resp, body) => {
         if (err) {
             reject(err);
             return;
         }
+
+        console.time(' cutoff ' + url);
+        var cutoff = c.load(body)('td[style*="background-color:#CCFF00"]').length;
+        console.timeEnd(' cutoff ' + url);
+
         console.time(' rows ' + url);
         var rows = c.load(body)('.row_even, .row_odd');
         console.timeEnd(' rows ' + url);
@@ -55,14 +49,20 @@ function getTimes(url, cutoff) {
         }).toArray();
         console.timeEnd(' scores ' + url);
 
+        console.time(' title ' + url);
+        var title = c.load(body)('.main div[style*="margin"]').text();
+        console.timeEnd(' title ' + url);
+
         resolve({
+            title: title,
             scores: scores,
             fields: [
                 { title: 'result', value: result },
                 { title: 'place', value: place },
                 { title: 'competitors', value: competitors },
                 { title: 'unreported', value: unreported },
-                { title: 'worst', value: worst }
+                { title: 'worst', value: worst },
+                { title: 'advancing', value: cutoff }
             ]
         });
     });
@@ -75,34 +75,45 @@ app.set('port', (process.env.PORT || 5000));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
-app.get('/', function(request, response) {
-    var results = [];
+app.get('/', function(req, res) {
+    res.render('index.ejs', { refreshInterval: 10 });
+});
 
+app.get('/query', function(req, res) {
     Promise.resolve()
     .then(function() {
         console.log('FETCHING RESULTS');
-        return Promise.map(queries, (query) => {
-            return getTimes(query.url, query.cutoff)
-                    .then((data) => {
-                        results.push({
-                            cls: query.title.replace(/\s/g, '_'),
-                            title: query.title,
-                            fields: data.fields,
-                            scores: data.scores
-                        });
-                    });
+        console.log(req.query);
+        return getTimes(req.query.url, req.query.cutoff || 100)
+        .then((data) => {
+            return {
+                cls: data.title.replace(/[\s\.]/g, '_'),
+                url: req.query.url,
+                title: data.title,
+                fields: data.fields,
+                scores: data.scores
+            };
         });
     })
-    .then(function() {
+    .then(function(result) {
         console.log('RESULTS');
-        results = results.sort(function(a, b) {
-            return a.title > b.title;
+        console.log(JSON.stringify(result));
+        app.render('result.ejs', result, (err, html) => {
+            if (err) {
+                res.send(err);
+            } else {
+                res.send({
+                    cls: result.cls,
+                    url: result.url,
+                    scores: result.scores,
+                    html: html
+                });
+            }
         });
-        console.log(JSON.stringify(results));
-        response.render('index.ejs', { results: results });
     })
     .catch(function(err) {
-        response.send(err);
+        console.error(err);
+        res.send(err);
     });
 });
 

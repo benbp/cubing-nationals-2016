@@ -1,37 +1,95 @@
 <html>
 <head>
-    <meta http-equiv="refresh" content="10">
     <script src="http://code.jquery.com/jquery-latest.min.js"
         type="text/javascript"></script>
     <script type="text/javascript" 
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js"></script>
     <script type="text/javascript">
         $(function() {
-            <% results.forEach(function(data) { %>
-                $(".<%= data.cls %>").sparkline([<%= data.scores %>], {
-                    type: 'line',
-                    height: '120',
-                    width: '250',
+            $(document).on("click", ".remove", function() {
+                // A little hacky, but hey...
+                var cls = $(this).attr('class').split(' ').pop();
+                var queries = JSON.parse(localStorage.getItem('queries'));
+                queries = queries.filter(function(query) {
+                    return query.cls !== cls;
                 });
-            <% }); %>
+                localStorage.setItem('queries', JSON.stringify(queries));
+                $(this).parent().parent().parent().parent().remove();
+            });
+
+            $('#addQuery').submit(function(event) {
+                event.preventDefault();
+                var url = $(this).find('#addQueryInput').val();
+                $(this).find('#addQueryInput').val('');
+                var queries = JSON.parse(localStorage.getItem('queries')) || [];
+                // Don't add duplicates
+                var found = false;
+                queries.forEach(function(query) {
+                    if (query.url === url) {
+                        found = true;
+                    }
+                });
+                if (found) {
+                    return;
+                }
+                queries.unshift({ url: url });
+                localStorage.setItem('queries', JSON.stringify(queries));
+                refreshUrls();
+            });
+
+            function refreshUrls() {
+                var queries = JSON.parse(localStorage.getItem('queries')) || [];
+                queries.forEach(function(query) {
+                    $.ajax({
+                        url: window.location.href + 
+                            'query?url=' + encodeURIComponent(query.url)
+                    }).done(function(data) {
+                        var queries = JSON.parse(localStorage.getItem('queries'));
+                        var found = false;
+                        // Add class property, and detect if the query has been
+                        // removed by the user.
+                        queries = queries.map(function(query) {
+                            if (query.url === data.url) {
+                                found = true;
+                                query.cls = data.cls;
+                            }
+                            return query;
+                        });
+                        localStorage.setItem('queries', JSON.stringify(queries));
+                        // Handle case where the 'Remove' button was clicked while 
+                        // an outgoing request was still active.
+                        if (!found) {
+                            console.log('race avoided');
+                            return;
+                        }
+                        if (!$('.' + data.cls).length) {
+                            $('body').append(
+                                "<div class=" + data.cls + ">" + data.html + "</div>");
+                        } else {
+                            $('.' + data.cls).html(data.html);
+                        }
+                        $('.' + data.cls + '_spark').sparkline(data.scores, {
+                            type: 'line',
+                            height: '120',
+                            width: '250',
+                        });
+                    });
+                });
+            }
+
+            refreshUrls();
+
+            setInterval(function() {
+                refreshUrls();
+            }, <%= refreshInterval %> * 1000);
         });
     </script>
 </head>
 <body>
-    <i>Refreshing data every 10 seconds</i>
-
-    <% results.forEach(function(data) { %>
-        <div style="width:450">
-            <div>
-                <span class="<%= data.cls %>" style="float:right">spark</span>
-                <h3><%= data.title %></h3>
-                <ul>
-                    <% data.fields.forEach(function(field) { %>
-                        <li><%= field.title %>: <%= field.value %></li>
-                    <% }); %>
-                </ul>
-            </div>
-        </div>
-    <% }); %>
+    <form id="addQuery" action="destination.html">
+      <input type="text" size="50" id="addQueryInput">
+      <input type="submit" value="Add cubecomp url">
+    </form>
+    <i>Refreshing data every <%= refreshInterval %> seconds</i>
 </body>
 </html>

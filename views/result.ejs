@@ -1,0 +1,14 @@
+<div style="width:450">
+    <div>
+        <div>
+            <h3><%= title %></h3>
+            <button type="button" class="remove <%= cls %>">Remove</button>
+        </div>
+        <span class="<%= cls %>_spark" style="float:right">spark</span>
+        <ul>
+            <% fields.forEach(function(field) { %>
+                <li><%= field.title %>: <%= field.value %></li>
+            <% }); %>
+        </ul>
+    </div>
+</div>
